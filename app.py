@@ -14,19 +14,31 @@ class Notification(db.Model):
     title = db.Column(db.String(255), nullable=False)
     message = db.Column(db.Text, nullable=False)
     sent_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    opt_out = db.Column(db.Boolean, default=False)
 
 @app.route('/notify', methods=['POST'])
 def notify():
     user_id = request.json['user_id']
-    title = request.json['title']
-    message = request.json['message']
+    title = "Slot Showdown Promotion"
+    message = request.json['message'] + "\n\nthe opportunity to win exciting prizes while playing your favorite slots\nJoin the competition and start playing your favorite slots now!\nIf you do not wish to receive these notifications, you can opt-out."
     notification = Notification(user_id=user_id, title=title, message=message)
     db.session.add(notification)
     db.session.commit()
     return jsonify({'message': 'Notification sent'}), 201
 
+@app.route('/opt-out', methods=['POST'])
+def opt_out():
+    user_id = request.json['user_id']
+    notifications = Notification.query.filter_by(user_id=user_id).all()
+    for notification in notifications:
+        notification.opt_out = True
+    db.session.commit()
+    return jsonify({'message': 'You have successfully opted out of notifications.'}), 200
+
 def send_notification():
-    print("Sending Slot Showdown notification to registered players")
+    notifications = Notification.query.filter_by(opt_out=False).all()
+    for notification in notifications:
+        print(f"Sending {notification.title} to user {notification.user_id}")
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(send_notification, 'interval', hours=1)
